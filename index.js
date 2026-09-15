@@ -185,7 +185,7 @@ async function run() {
 
         if (!fs.existsSync(exeSourcePath)) {
             core.startGroup('Cloning pyappify repository');
-            await exec.exec('git', ['clone', 'https://github.com/ok-oldking/pyappify.git', buildDir]);
+            await exec.exec('git', ['clone', 'https://github.com/BnanZ0/pyappify.git', buildDir]);
             if (pyappifyVersion) {
                 core.info(`Checking out specified version: ${pyappifyVersion}`);
                 await exec.exec('git', ['checkout', `tags/${pyappifyVersion}`], { cwd: buildDir });
