@@ -72213,8 +72213,26 @@ async function downloadAndExtractRelease(useReleaseUrl, appName, platform, exeDe
     core.endGroup();
 }
 
+async function buildFrozenZip(exeSourcePath, config, configFile, distDir) {
+    const version = process.env.GITHUB_REF_NAME;
+    if (!version) throw new Error('Frozen packaging requires GITHUB_REF_NAME.');
+    const archiveVersion = version.startsWith('v') ? version : `v${version}`;
+    const architecture = process.arch === 'x64' ? 'x86_64' : process.arch;
+    const archiveName = `${config.name}-win-${architecture}-${archiveVersion}`;
+    const output = path.resolve(distDir, `${archiveName}-full.zip`);
+    const bodyOutput = path.resolve(distDir, `${archiveName}-body.zip`);
+    core.startGroup('Building frozen ZIPs through PyAppify');
+    await exec.exec(exeSourcePath, ['-c', 'frozen-zip', path.resolve(configFile), version, output, bodyOutput]);
+    if (fs.existsSync(output)) core.setOutput('full-zip-path', output);
+    core.setOutput('body-zip-path', bodyOutput);
+    core.endGroup();
+}
+
 async function run() {
     try {
+        const packageMode = core.getInput('package_mode') || 'setup';
+        if (!['setup', 'frozen', 'all'].includes(packageMode)) throw new Error('package_mode must be setup, frozen or all.');
+        const wantsFrozen = packageMode === 'frozen' || packageMode === 'all';
         const useRelease = core.getInput('use_release');
         const buildExeOnly = core.getBooleanInput('build_exe_only');
         const buildDir = process.env.RUNNER_TEMP
@@ -72310,7 +72328,7 @@ async function run() {
                 await downloadAndExtractRelease(useRelease, appName, platform, exeDestPath, exeSourcePath);
                 core.endGroup();
             } else {
-                await exec.exec('pnpm', ['tauri', 'build'], { cwd: buildDir });
+                await exec.exec('pnpm', packageMode === 'frozen' ? ['tauri', 'build', '--no-bundle'] : ['tauri', 'build'], { cwd: buildDir });
                 core.endGroup();
                 if (buildExeOnly) {
                     if (!fs.existsSync(exeSourcePath)) {
@@ -72322,6 +72340,17 @@ async function run() {
                     core.info(`build_exe_only is true. Action finished. Exe path: ${exeSourcePath}`);
                     return;
                 }
+            }
+        }
+
+        if (wantsFrozen) {
+            await buildFrozenZip(exeSourcePath, config, configFile, distDir);
+            if (packageMode === 'frozen') {
+                await removeIfExists(appDistDir);
+                const releaseFiles = fs.readdirSync(distDir).map(file => path.join(distDir, file));
+                core.setOutput('pyappify-assets', releaseFiles.join('\n'));
+                core.setOutput('dist-path', distDir);
+                return;
             }
         }
 

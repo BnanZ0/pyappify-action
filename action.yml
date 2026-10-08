@@ -7,6 +7,11 @@ inputs:
     description: The tag version of pyappify to use. Defaults to the latest tag. Strongly recommended to set to ensure consistancy.
     required: false
   
+  package_mode:
+    description: Packages to generate, setup, frozen or all. Frozen builds are performed by PyAppify.
+    required: false
+    default: setup
+
   use_release:
     description: The github release version to use. Saves time for re-compiling and signing
     required: false
@@ -23,6 +28,12 @@ outputs:
 
   pyappify-assets:
     description: The list of files to be released.
+
+  body-zip-path:
+    description: The standalone application body ZIP with its program file manifest.
+
+  full-zip-path:
+    description: The complete frozen ZIP, generated only when MirrorChyan is configured.
 
   exe-path:
     description: The tauri exe path
